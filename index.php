@@ -8,6 +8,8 @@ if (is_logged_in()) {
         redirect('owner/dashboard.php');
     } elseif (get_user_role() === 'tenant') {
         redirect('tenant/dashboard.php');
+    } elseif (get_user_role() === 'developer') {
+        redirect('developer.php');
     }
     // No else needed here, as the script will exit after redirection
 }

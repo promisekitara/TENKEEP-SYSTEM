@@ -21,15 +21,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
 
     if ($name && $contact_number && $username) {
-        $update_tenant_sql = "UPDATE tenants t JOIN users u ON t.user_id = u.user_id SET t.name = ?, t.contact_number = ?, u.username = ? WHERE t.user_id = ?";
-        $result = execute_prepared_query($conn, $update_tenant_sql, 'sssi', [$name, $contact_number, $username, $tenant_user_id]);
-        if ($result !== false) {
-            $success = 'Details updated successfully!';
-            // Refresh tenant info
-            $tenant_info_result = execute_query($conn, "SELECT t.*, u.username FROM tenants t JOIN users u ON t.user_id = u.user_id WHERE t.user_id = $tenant_user_id");
-            $tenant = fetch_array($tenant_info_result);
-        } else {
-            $error = 'Failed to update details.';
+        // Use transactions for atomicity
+        mysqli_begin_transaction($conn);
+        try {
+            $update_tenant_sql = "UPDATE tenants SET name = ?, contact_number = ? WHERE user_id = ?";
+            $tenant_stmt = mysqli_prepare($conn, $update_tenant_sql);
+            mysqli_stmt_bind_param($tenant_stmt, 'ssi', $name, $contact_number, $tenant_user_id);
+            $tenant_ok = mysqli_stmt_execute($tenant_stmt);
+            mysqli_stmt_close($tenant_stmt);
+
+            $update_user_sql = "UPDATE users SET username = ? WHERE user_id = ?";
+            $user_stmt = mysqli_prepare($conn, $update_user_sql);
+            mysqli_stmt_bind_param($user_stmt, 'si', $username, $tenant_user_id);
+            $user_ok = mysqli_stmt_execute($user_stmt);
+            mysqli_stmt_close($user_stmt);
+
+            if ($tenant_ok && $user_ok) {
+                mysqli_commit($conn);
+                $success = 'Details updated successfully!';
+                $tenant_info_result = execute_query($conn, "SELECT t.*, u.username FROM tenants t JOIN users u ON t.user_id = u.user_id WHERE t.user_id = $tenant_user_id");
+                $tenant = fetch_array($tenant_info_result);
+            } else {
+                mysqli_rollback($conn);
+                $error = 'Failed to update details.';
+            }
+        } catch (Exception $e) {
+            mysqli_rollback($conn);
+            $error = 'Database error: ' . $e->getMessage();
         }
     } else {
         $error = 'All fields are required.';
