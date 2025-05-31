@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        $sql = "INSERT INTO properties (owner_id, name, address, price, currency, image_path) VALUES ($owner_id, '$name', '$address', $price, '$currency', '$image_path')";
+       $sql = "INSERT INTO properties (name, address, price, currency, rules, owner_id) VALUES ('$name', '$address', '$price', '$currency', '$rules', '$owner_id')";
         if (execute_query($conn, $sql)) {
             $success = 'Property added successfully. <a href="properties.php">View Properties</a>';
         } else {
@@ -200,10 +200,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </select>
                 </div>
                 <div>
-                    <label for="image">Property Photo:</label>
-                    <input type="file" id="image" name="image" accept="image/*">
-                    <small>Allowed formats: JPEG, PNG, GIF</small>
-                </div>
+    <label for="rules">Property Rules:</label>
+    <textarea id="rules" name="rules" rows="4" cols="50"></textarea>
+</div>
+               
                 <button type="submit">Add Property</button>
             </form>
         <?php endif; ?>

@@ -10,7 +10,7 @@ function get_user_id() {
 }
 
 function get_user_role() {
-    return $_SESSION['user_role'] ?? null;
+    return $_SESSION['role'] ?? ($_SESSION['user_role'] ?? null);
 }
 
 function login($conn, $username, $password) {
@@ -46,8 +46,8 @@ function require_login() {
 function require_role($role) {
     require_login();
     if (get_user_role() !== $role) {
-        // You might want to redirect to an unauthorized page
-        echo "Unauthorized access.";
+        // Redirect to login page with unauthorized message
+        header('Location: /XTenKeep/auth/login.php?unauthorized=1');
         exit();
     }
 }

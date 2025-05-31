@@ -1,12 +1,40 @@
 <?php
 require_once '../includes/header.php';
 require_once '../config/db.php';
+require_once '../includes/auth.php';
+require_once '../includes/functions.php'; // Ensure functions.php is included for execute_query and fetch_all
 
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 require_role('tenant');
 
 $tenant_user_id = get_user_id();
 
-// Fetch tenant and property details along with owner (manager) details
+// Fetch tenant's username for display
+$tenant_username = '';
+if ($tenant_user_id) {
+    // Assuming 'username' is the column in the 'users' table that stores the tenant's display name
+    $tenant_name_result = execute_query($conn, "SELECT username FROM users WHERE user_id = $tenant_user_id");
+    if ($tenant_name_result && num_rows($tenant_name_result) > 0) {
+        $tenant_data = fetch_array($tenant_name_result);
+        $tenant_username = htmlspecialchars($tenant_data['username']);
+    }
+}
+
+// --- Refactored: Fetch actual tenant_id early to avoid repetition ---
+$actual_tenant_id = null;
+if ($tenant_user_id) {
+    $get_tenant_id_sql = "SELECT tenant_id FROM tenants WHERE user_id = ?";
+    $tenant_id_result = execute_prepared_query($conn, $get_tenant_id_sql, 'i', $tenant_user_id);
+    if ($tenant_id_result && $row = fetch_array($tenant_id_result)) {
+        $actual_tenant_id = $row['tenant_id'];
+    }
+}
+// --- End Refactored ---
+
+// --- IMPORTANT: Fetch tenant and property details *before* handling POST requests ---
+// This ensures $tenant and $tenant_property_id are available for validation
 $tenant_info_result = execute_query($conn, "SELECT t.*,
                                                    p.property_id,
                                                    p.name AS property_name,
@@ -19,26 +47,54 @@ $tenant_info_result = execute_query($conn, "SELECT t.*,
                                             WHERE t.user_id = $tenant_user_id");
 $tenant = fetch_array($tenant_info_result);
 
-$property_price = $tenant['property_price'] ?? 0;
+// Initialize tenant_property_id here, as it's crucial for the POST handler
+// Use null coalescing operator to safely get property_id, defaulting to null if $tenant is empty
 $tenant_property_id = $tenant['property_id'] ?? null;
+
+// --- End of POST handling. Remaining data fetches use the already retrieved $tenant variable ---
+
+$property_price = $tenant['property_price'] ?? 0;
 $total_payments = 0;
+$property_rules = [];
 
 if ($tenant_property_id) {
-    $total_payments_result = execute_query($conn, "SELECT SUM(amount) AS total FROM payments
-                                                  WHERE tenant_id = (SELECT tenant_id FROM tenants WHERE user_id = $tenant_user_id)
-                                                    AND property_id = $tenant_property_id");
+    // Refactored: Use $actual_tenant_id directly
+    $total_payments_sql = "SELECT SUM(amount) AS total FROM payments WHERE tenant_id = ? AND property_id = ?";
+    $total_payments_result = execute_prepared_query($conn, $total_payments_sql, 'ii', $actual_tenant_id, $tenant_property_id);
     $total_payment_data = fetch_array($total_payments_result);
     $total_payments = $total_payment_data['total'] ?? 0;
+
+    // Fetch property rules for the tenant's property
+    $rules_result = execute_query($conn, "SELECT rule_description FROM property_rules WHERE property_id = $tenant_property_id ORDER BY rule_id ASC");
+    if ($rules_result) {
+        while ($rule = fetch_array($rules_result)) {
+            $property_rules[] = htmlspecialchars($rule['rule_description']);
+        }
+    }
 }
 
 $paid_percentage = ($property_price > 0) ? ($total_payments / $property_price) * 100 : 0;
 
 // Fetch recent complaints by the tenant
-$complaints_result = execute_query($conn, "SELECT * FROM complaints WHERE tenant_id = (SELECT tenant_id FROM tenants WHERE user_id = $tenant_user_id) ORDER BY complaint_date DESC LIMIT 3"); // Limit to 3 for the tile
+// Refactored: Use $actual_tenant_id directly
+$complaints_sql = "SELECT * FROM complaints WHERE tenant_id = ? ORDER BY complaint_date DESC LIMIT 3"; // Limit to 3 for the tile
+$complaints_result = execute_prepared_query($conn, $complaints_sql, 'i', $actual_tenant_id);
 $complaints = [];
 if ($complaints_result) {
     while ($row = fetch_array($complaints_result)) {
         $complaints[] = $row;
+    }
+}
+
+// Fetch recent property updates for the tenant's property (no change here, as it uses property_id directly)
+$updates = [];
+if ($tenant_property_id) {
+    $updates_query = "SELECT * FROM updates WHERE property_id = $tenant_property_id ORDER BY update_date DESC LIMIT 3"; // Limit to 3 recent updates
+    $updates_result = execute_query($conn, $updates_query);
+    if ($updates_result) {
+        while ($row = fetch_array($updates_result)) {
+            $updates[] = $row;
+        }
     }
 }
 ?>
@@ -169,9 +225,62 @@ if ($complaints_result) {
     .status-replied {
         color: #28a745; /* Green */
     }
+
+    .rules-tile ul {
+        list-style: none;
+        padding: 0;
+        margin-top: 10px;
+    }
+
+    .rules-tile li {
+        padding: 5px 0;
+        border-bottom: 1px dotted #ccc;
+    }
+
+    .rules-tile li:last-child {
+        border-bottom: none;
+    }
+
+    .message-container {
+        margin-bottom: 20px;
+        padding: 15px;
+        border-radius: 5px;
+    }
+
+    .success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+
+    .danger {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+
+    .warning {
+        background-color: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeeba;
+    }
 </style>
 
 <h2>Tenant Dashboard</h2>
+
+<?php if (isset($_SESSION['message'])): ?>
+    <div class="message-container <?php echo $_SESSION['message_type']; ?>">
+        <?php echo $_SESSION['message']; ?>
+    </div>
+    <?php unset($_SESSION['message']); ?>
+    <?php unset($_SESSION['message_type']); ?>
+<?php endif; ?>
+
+<?php if ($tenant_username): ?>
+    <p style="text-align: center; font-size: 1.2em; color: #34495e; margin-bottom: 30px;">Welcome, <strong><?php echo $tenant_username; ?></strong>! Here's an overview of your tenancy.</p>
+<?php else: ?>
+    <p style="text-align: center; font-size: 1.2em; color: #34495e; margin-bottom: 30px;">Welcome! Here's an overview of your tenancy.</p>
+<?php endif; ?>
 
 <div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; width: 100%;">
     <?php if ($tenant): ?>
@@ -211,6 +320,17 @@ if ($complaints_result) {
                 <p>No recent complaints.</p>
             <?php endif; ?>
         </div>
+
+        <?php if (!empty($property_rules)): ?>
+            <div class="dashboard-tile rules-tile" style="flex-grow: 1; min-width: 300px;">
+                <h3>Property Rules</h3>
+                <ul>
+                    <?php foreach ($property_rules as $rule): ?>
+                        <li><?php echo $rule; ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
 
     <?php else: ?>
         <p class="error">Tenant information not found.</p>

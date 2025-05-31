@@ -2,7 +2,7 @@
 require_once '../includes/header.php';
 require_once '../config/db.php';
 require_once '../includes/auth.php';
-
+require_once '../includes/functions.php'; // Ensure functions.php is included for execute_query and fetch_all
 
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -10,6 +10,17 @@ error_reporting(E_ALL);
 require_role('owner');
 
 $owner_user_id = get_user_id();
+
+// Fetch owner's username for display
+$owner_username = '';
+if ($owner_user_id) {
+    // Assuming 'username' is the column in the 'users' table that stores the owner's display name
+    $owner_name_result = execute_query($conn, "SELECT username FROM users WHERE user_id = $owner_user_id");
+    if ($owner_name_result && num_rows($owner_name_result) > 0) {
+        $owner_data = fetch_array($owner_name_result);
+        $owner_username = htmlspecialchars($owner_data['username']);
+    }
+}
 
 // Fetch properties owned by the current owner
 $properties_result = execute_query($conn, "SELECT property_id, name, price FROM properties WHERE owner_id = $owner_user_id");
@@ -204,6 +215,12 @@ $vacant_properties = $total_properties - count($properties_with_tenants);
 </style>
 
 <h2>Owner Dashboard</h2>
+
+<?php if ($owner_username): ?>
+    <p style="text-align: center; font-size: 1.2em; color: #34495e; margin-bottom: 30px;">Welcome, <strong><?php echo $owner_username; ?></strong>! Here's an overview of your properties.</p>
+<?php else: ?>
+    <p style="text-align: center; font-size: 1.2em; color: #34495e; margin-bottom: 30px;">Welcome! Here's an overview of your properties.</p>
+<?php endif; ?>
 
 <div class="dashboard-widgets">
     <div class="widget">

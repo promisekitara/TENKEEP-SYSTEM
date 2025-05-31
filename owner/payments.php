@@ -37,14 +37,14 @@ if ($tenants_result) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $tenant_id = intval($_POST['tenant_id']);
-    $property_id = intval($_POST['property_id']);
-    $payment_date = $_POST['payment_date'];
-    $amount = floatval($_POST['amount']);
-    $description = $_POST['description'];
+    $tenant_id = intval($_POST['tenant_id'] ?? 0);
+    $property_id = intval($_POST['property_id'] ?? 0);
+    $payment_date = trim($_POST['payment_date'] ?? '');
+    $amount = floatval($_POST['amount'] ?? 0);
+    $description = trim($_POST['description'] ?? '');
 
-    if (empty($tenant_id) || empty($property_id) || empty($payment_date) || empty($amount)) {
-        $error = 'All fields are required.';
+    if ($tenant_id <= 0 || $property_id <= 0 || !$payment_date || $amount <= 0) {
+        $error = 'All fields are required and must be valid.';
     } elseif (!isset($tenants[$tenant_id])) {
         $error = 'Invalid Tenant ID.';
     } elseif (!isset($properties[$property_id])) {
@@ -52,10 +52,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($tenants[$tenant_id]['property_id'] != $property_id) {
         $error = "Tenant is not associated with selected property";
     } else {
-        if (recordPayment($conn, $tenant_id, $property_id, $payment_date, $amount, $description)) {
+        // Use null for empty description
+        $desc = $description !== '' ? $description : null;
+        if (recordPayment($conn, $tenant_id, $property_id, $payment_date, $amount, $desc)) {
             $success = 'Payment recorded successfully.';
         } else {
-            $error = 'Error recording payment.';
+            $error = 'Error recording payment. Please check your input or contact support.';
         }
     }
 }
@@ -122,6 +124,8 @@ if ($payments_result) {
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         margin-bottom: 30px;
         max-width: 500px;
+        margin-left: auto; /* Center the form */
+        margin-right: auto; /* Center the form */
     }
 
     .record-payment-form div {
@@ -139,7 +143,7 @@ if ($payments_result) {
     .record-payment-form input[type="date"],
     .record-payment-form input[type="number"],
     .record-payment-form input[type="text"] {
-        width: calc(100% - 22px);
+        width: calc(100% - 22px); /* Adjust for padding and border */
         padding: 10px;
         border: 1px solid #ced4da;
         border-radius: 4px;
@@ -178,6 +182,7 @@ if ($payments_result) {
         background-color: #fff;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        overflow: hidden; /* Ensures rounded corners */
     }
 
     .payments-table th, .payments-table td {
@@ -200,6 +205,9 @@ if ($payments_result) {
         color: #777;
         font-style: italic;
         margin-top: 20px;
+        padding: 15px;
+        background-color: #f0f0f0;
+        border-radius: 8px;
     }
 </style>
 
@@ -221,7 +229,9 @@ if ($payments_result) {
                 <select id="tenant_id" name="tenant_id" required>
                     <option value="">Select Tenant</option>
                     <?php foreach ($tenants as $id => $tenant): ?>
-                        <option value="<?php echo $id; ?>"><?php echo htmlspecialchars($tenant['tenant_name']); ?></option>
+                        <option value="<?php echo $id; ?>" <?php echo (isset($_POST['tenant_id']) && $_POST['tenant_id'] == $id) ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($tenant['tenant_name']); ?>
+                        </option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -230,21 +240,23 @@ if ($payments_result) {
                 <select id="property_id" name="property_id" required>
                     <option value="">Select Property</option>
                     <?php foreach ($properties as $id => $name): ?>
-                        <option value="<?php echo $id; ?>"><?php echo htmlspecialchars($name); ?></option>
+                        <option value="<?php echo $id; ?>" <?php echo (isset($_POST['property_id']) && $_POST['property_id'] == $id) ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($name); ?>
+                        </option>
                     <?php endforeach; ?>
                 </select>
             </div>
             <div>
                 <label for="payment_date">Payment Date:</label>
-                <input type="date" id="payment_date" name="payment_date" required>
+                <input type="date" id="payment_date" name="payment_date" value="<?php echo htmlspecialchars($_POST['payment_date'] ?? date('Y-m-d')); ?>" required>
             </div>
             <div>
                 <label for="amount">Amount:</label>
-                <input type="number" id="amount" name="amount" step="0.01" required>
+                <input type="number" id="amount" name="amount" step="0.01" value="<?php echo htmlspecialchars($_POST['amount'] ?? ''); ?>" required>
             </div>
             <div>
                 <label for="description">Description (Optional):</label>
-                <input type="text" id="description" name="description">
+                <input type="text" id="description" name="description" value="<?php echo htmlspecialchars($_POST['description'] ?? ''); ?>">
             </div>
             <button type="submit">Record Payment</button>
         </form>
@@ -253,28 +265,30 @@ if ($payments_result) {
     <div class="payment-history-section">
         <h3>Payment History</h3>
         <?php if (!empty($payments)): ?>
-            <table class="payments-table">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Tenant</th>
-                        <th>Property</th>
-                        <th>Amount</th>
-                        <th>Description</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($payments as $payment): ?>
+            <div class="table-responsive">
+                <table class="payments-table">
+                    <thead>
                         <tr>
-                            <td><?php echo htmlspecialchars($payment['payment_date']); ?></td>
-                            <td><?php echo htmlspecialchars($payment['tenant_name']); ?></td>
-                            <td><?php echo htmlspecialchars($payment['property_name']); ?></td>
-                            <td><?php echo htmlspecialchars($payment['amount']); ?></td>
-                            <td><?php echo htmlspecialchars($payment['description'] ?? 'N/A'); ?></td>
+                            <th>Date</th>
+                            <th>Tenant</th>
+                            <th>Property</th>
+                            <th>Amount</th>
+                            <th>Description</th>
                         </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($payments as $payment): ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($payment['payment_date']); ?></td>
+                                <td><?php echo htmlspecialchars($payment['tenant_name']); ?></td>
+                                <td><?php echo htmlspecialchars($payment['property_name']); ?></td>
+                                <td>$<?php echo htmlspecialchars(number_format($payment['amount'], 2)); ?></td>
+                                <td><?php echo htmlspecialchars($payment['description'] ?? 'N/A'); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         <?php else: ?>
             <p class="no-payments">No payments recorded yet.</p>
         <?php endif; ?>

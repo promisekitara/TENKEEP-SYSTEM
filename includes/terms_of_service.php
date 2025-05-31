@@ -140,7 +140,7 @@ error_reporting(E_ALL);
     <p>TenKeep reserves the right to modify or replace these Terms at any time. If a revision is material, we will provide at least 30 days' notice prior to any new terms taking effect. What constitutes a material change will be determined at our sole discretion. By continuing to access or use our Services after those revisions become effective, you agree to be bound by the revised terms. If you do not agree to the new terms, please stop using the Services.</p>
 
     <h3>15. Contact Us</h3>
-    <p>If you have any questions about these Terms, please contact us at: <a href="mailto:kitarapromise34@Tenkeep.com">kitarapromise34@Tenkeep.com</a></p>
+    <p>If you have any questions about these Terms, please contact us at: <a href="mailto:kitarapromise34@Tenkeep.com">kitarapromise34@gmail.com</a></p>
 </div>
 
 <?php

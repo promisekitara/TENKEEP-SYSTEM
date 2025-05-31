@@ -1,12 +1,8 @@
 </main>
   <footer>
             <div class="footer-content">
-                <p>&copy; <?php echo date("Y"); ?> TenKeep. All rights reserved.</p>
-                <nav class="footer-nav">
-                    <a href="#">Privacy Policy</a>
-                    <a href="../terms_of_service.php">Terms of Service</a>
-                    <a href="../profile.php">Contact Us</a>
-                </nav>
+                <center><p>&copy; <?php echo date("Y"); ?> TenKeep. All rights reserved.</p></center>
+                
             </div>
         </footer>
     </div>

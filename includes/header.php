@@ -1,6 +1,14 @@
 <?php
-require_once '../includes/auth.php';
-require_once '../includes/functions.php';
+// Use correct path for includes
+$baseDir = __DIR__;
+$authPath = $baseDir . '/auth.php';
+$functionsPath = $baseDir . '/functions.php';
+if (file_exists($authPath)) {
+    require_once $authPath;
+}
+if (file_exists($functionsPath)) {
+    require_once $functionsPath;
+}
 
 if (!is_logged_in()) {
     redirect('/tenkeep/auth/login.php');
@@ -82,7 +90,6 @@ $logo_url = '../assets/images/logo.png'; // Example default logo
     <div class="container">
         <header>
             <div class="logo-section">
-                <img src="../TenkeepLogo.png" alt="TenKeep Logo">
                 <h1>TenKeep</h1>
             </div>
             <nav>
@@ -92,11 +99,16 @@ $logo_url = '../assets/images/logo.png'; // Example default logo
                     <a href="../owner/tenants.php">Tenants</a>
                     <a href="../owner/complaints.php">Complaints</a>
                     <a href="../owner/payments.php">Payments</a>
+                    <a href="../owner/edit_owner_details.php">Edit Details</a>
                 <?php elseif (get_user_role() === 'tenant'): ?>
                     <a href="../tenant/dashboard.php">Dashboard</a>
                     <a href="../tenant/complaints.php">Complaints</a>
                     <a href="../tenant/payments.php">Payments</a>
+                    <a href="../tenant/edit_tenant_details.php">Edit Details</a>
+                <?php elseif (get_user_role() === 'developer'): ?>
+                    <a href="../developer.php">Developer Dashboard</a>
                 <?php endif; ?>
+                <a href="../includes/contact.php">Contact Us</a>
                 <a href="../auth/logout.php">Logout</a>
             </nav>
         </header>

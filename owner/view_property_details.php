@@ -103,6 +103,18 @@ $property = fetch_array($result);
     <?php else: ?>
         <p class="error">Could not retrieve property details.</p>
     <?php endif; ?>
+    <?php if (!empty($property['rules'])): ?>
+    <p><strong>Rules:</strong></p>
+    <ul>
+        <?php 
+           $rulesArray = explode("\n", $property['rules']);
+           foreach ($rulesArray as $rule): ?>
+               <li><?php echo htmlspecialchars($rule); ?></li>
+        <?php endforeach; ?>
+    </ul>
+<?php else: ?>
+    <p>No rules defined for this property.</p>
+<?php endif; ?>
 </div>
 
 <?php require_once '../includes/footer.php'; ?>

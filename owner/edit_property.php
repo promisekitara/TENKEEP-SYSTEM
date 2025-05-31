@@ -32,9 +32,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $price = $_POST['price'];
     // Add more fields as necessary
 
-    $query = "UPDATE properties SET name = ?, address = ?, price = ? WHERE property_id = ? AND owner_id = ?";
-    $stmt = mysqli_prepare($conn, $query);
-    mysqli_stmt_bind_param($stmt, "ssdii", $name, $address, $price, $property_id, $owner_id);
+    $query = "UPDATE properties SET name = ?, address = ?, price = ?, rules = ? WHERE property_id = ? AND owner_id = ?";
+$stmt = mysqli_prepare($conn, $query);
+mysqli_stmt_bind_param($stmt, "ssdssi", $name, $address, $price, $rules, $property_id, $owner_id);
 
     if (mysqli_stmt_execute($stmt)) {
         echo "<p class='success'>Property updated successfully! <a href='properties.php'>Back to Properties</a></p>";
@@ -136,6 +136,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label for="price">Price:</label>
         <input type="number" id="price" name="price" step="0.01" value="<?php echo htmlspecialchars($property['price']); ?>" required><br>
 
+        <label for="rules">Property Rules:</label>
+<textarea id="rules" name="rules" rows="4" cols="50"><?php echo htmlspecialchars($property['rules']); ?></textarea><br>
         <button type="submit">Update Property</button>
     </form>
 </div>
